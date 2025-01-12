@@ -61,6 +61,17 @@ def resolve_schema(schema_name, schemas, seen_schemas=None, max_depth=10, max_br
             resolved_properties[key] = child_schema
             if include_docs and value.get("description", "").strip():
                 resolved_properties[key]["__DOCS"] = value["description"]
+        elif "enum" in value:
+            enum_values = value["enum"]
+            enum_descriptions = value.get("enumDescriptions", [])
+            if enum_descriptions and any(desc.strip() for desc in enum_descriptions):
+                resolved_properties[key] = "|".join(
+                    f"{val}: {desc.strip()}" if desc.strip() else val
+                    for val, desc in zip(enum_values, enum_descriptions)
+                )
+                resolved_properties[key] = f"<{resolved_properties[key]}>"
+            else:
+                resolved_properties[key] = f"<{"|".join(enum_values)}>"
         else:
             type_str = f"<{value.get('type', 'unknown')}>"
             if include_docs and value.get("description", "").strip():

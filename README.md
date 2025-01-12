@@ -18,7 +18,7 @@ Discovery2json creates the root directory for all the JSON files as specified in
 
 The output JSONs aren't immediately valid request or response bodies, but should be rather used as alternative documentation to the discovery document. They use strings to document data types and various limitations.
 
-For each method, the script recursively resolves schema references in order to build up the final request and response JSONs. For basic types such as strings and booleans, it uses strings to document the data type. For example, given a property `property` of type `integer`, the corresponding output JSON will be `"property": "(integer)"`. Arrays of a particular data type are expressed as arrays of a single string documenting the data type: `["(integer)"]`.
+For each method, the script recursively resolves schema references in order to build up the final request and response JSONs. For basic types such as strings and booleans, it uses strings to document the data type. For example, given a property `property` of type `integer`, the corresponding output JSON will be `"property": "<integer>"`. Arrays of a particular data type are expressed as arrays of a single string documenting the data type: `["<integer>"]`. Enum values are expressed as: `"<VALUE1|VALUE2|VALUE3|...>"`.
 
 Many schemas will have several properties, some of which won't be expected or useful for a particular request or won't ever exist in the response. Because we can't know which properties are actually relevant for a given endpoint, all of these may appear in the output JSONs, so it's still your job to figure out what is relevant and what isn't.
 
@@ -102,7 +102,9 @@ python3 discovery2json.py people-pa.json people-pa --regex updatePhotos --respon
 
 ## Including description strings
 
-If your discovery document includes non-empty `description` fields with documentation, you can pass `--docs` to include this documentation in the output JSONs. To see how this documentation is shown for various property types, compare the previous `response.json` for `updatePhotos` with the following one (using the `staging-people-pa` discovery document, which comes with informative description fields):
+If your discovery document includes non-empty `description` fields with documentation, you can pass `--docs` to include this documentation in the output JSONs. Where possible, this documents objects, arrays, enums, and other basic data types.
+
+Compare the previous `response.json` for `updatePhotos` with the following one, generated with `--docs` using the `staging-people-pa` discovery document (which comes with informative description fields):
 ```
 {
     "__DOCS": "Response from a people get request.",
