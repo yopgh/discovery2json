@@ -99,3 +99,31 @@ python3 discovery2json.py people-pa.json people-pa --regex updatePhotos --respon
                         "affinityType": "<string>",
 ...
 ```
+
+## Including description strings
+
+If your discovery document includes non-empty `description` fields with documentation, you can pass `--docs` to include this documentation in the output JSONs. To see how this documentation is shown for various property types, compare the previous `response.json` for `updatePhotos` with the following one (using the `staging-people-pa` discovery document, which comes with informative description fields):
+```
+{
+    "__DOCS": "Response from a people get request.",
+    "personResponse": [
+        "(DOCS: A multimap of results. For successful read of a given `person_id`, there will be one or more entries in this `person_response` list where the `PersonResponse.person_id` matches that of the requested `person_id` and the `PersonResponse.response_status.code` is `0` (which is the value of `util.error.Code.OK`). NOTE: * `PersonResponse.person_id` may not be the same value as the `PersonResponse.person.person_id` (go/people-api-concepts#person-id). * The ordering of entries with the same `PersonResponse.person_id` is not guaranteed and does not indicate a result \"priority\". For unsuccessful reads of a given `person_id`, there will be at least one entry in this `person_response` list where the `PersonResponse.person_id` matches that of the requested `person_id` and the `PersonResponse.response_status.code` is not `0`. *Special Case* Because the InternalPeopleService does not have a dedicated method for reading profile-centric people by Gaia ID, the advised technique is to use GetPeople with a list of Focus-obfuscated Gaia IDs and PROFILE_CENTRIC person model (which is the default if the GetPeopleRequest's merged_person_source_options.person_model_params.person_model is unset). For request meeting that criteria, there will be exactly one entry in the `person_response` list for each requested `person_id`.)",
+        {
+            "__DOCS": "A single person response entry.",
+            "responseStatus": {
+                "__DOCS": "The `Status` type defines a logical error model that is suitable for different programming environments, including REST APIs and RPC APIs. It is used by [gRPC](https://github.com/grpc). Each `Status` message contains three pieces of data: error code, error message, and error details. You can find out more about this error model and how to work with it in the [API Design Guide](https://cloud.google.com/apis/design/errors).",
+                "code": "<integer: The status code, which should be an enum value of google.rpc.Code.>",
+                "message": "<string: A developer-facing error message, which should be in English. Any user-facing error message should be localized and sent in the google.rpc.Status.details field, or localized by the client.>",
+                "details": [
+                    "(DOCS: A list of messages that carry the error details. There is a common set of message types for APIs to use.)",
+                    "<object>"
+                ]
+            },
+            "personId": "<string: The original lookup person ID. This enables the caller to correlate to the original request.>",
+            "person": "(79 properties hidden: max branches exceeded)",
+            "debugInfo": "<string: Additional useful information for debugging when Status isn't a SUCCESS.>",
+            "status": "<string: Deprecated. See the google.rpc.Code 'response_status' field above.>"
+        }
+    ]
+}
+```
