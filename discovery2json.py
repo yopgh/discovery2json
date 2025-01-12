@@ -7,7 +7,6 @@ import argparse
 import re
 
 def resolve_schema(schema_name, schemas, seen_schemas=None, max_depth=10, max_branches=10, start_depth=1, blacklisted_schemas=None):
-    """Recursively resolve schema properties, handling recursive references and array types."""
     if seen_schemas is None:
         seen_schemas = []
 
@@ -72,7 +71,6 @@ def write_file_with_stats(output_dir, file_path, resolve_function):
     print(f"\r[*] {elapsed_time:.2f}s {file_size}B {rel_path}")
 
 def analyze_discovery_doc(discovery_doc, output_dir, regex):
-    """Analyze the discovery doc to determine which directories and methods to process."""
     directories_to_create = []
 
     for endpoint, methods in discovery_doc.get("resources", {}).items():
@@ -81,29 +79,23 @@ def analyze_discovery_doc(discovery_doc, output_dir, regex):
         for method_name, method_data in methods.get("methods", {}).items():
             method_dir = os.path.join(endpoint_dir, method_name)
 
-            # Only include directories matching the regex
             if re.search(regex, method_dir):
                 directories_to_create.append((method_dir, method_data))
 
     return directories_to_create
 
-def generate_http_files(discovery_doc_path, output_dir, request_params, response_params, blacklisted_schemas, regex):
-    # Load the Discovery Document
+def generate_json_files(discovery_doc_path, output_dir, request_params, response_params, blacklisted_schemas, regex):
     with open(discovery_doc_path, 'r') as f:
         discovery_doc = json.load(f)
 
-    # Analyze discovery doc to determine necessary directories and methods
     directories_to_create = analyze_discovery_doc(discovery_doc, output_dir, regex)
 
-    # Create necessary directories
     for method_dir, _ in directories_to_create:
         os.makedirs(method_dir, exist_ok=True)
 
     schemas = discovery_doc.get("schemas", {})
 
-    # Process and write files
     for method_dir, method_data in directories_to_create:
-        # Write request file
         request_file_path = os.path.join(method_dir, "request.json")
         write_file_with_stats(
             output_dir,
@@ -116,7 +108,6 @@ def generate_http_files(discovery_doc_path, output_dir, request_params, response
             ) if "request" in method_data else {}
         )
 
-        # Write response file
         response_file_path = os.path.join(method_dir, "response.json")
         write_file_with_stats(
             output_dir,
@@ -160,4 +151,4 @@ if __name__ == "__main__":
 
     blacklisted_schemas = args.blacklisted_schemas.split(",")
 
-    generate_http_files(args.discovery_doc, args.output_dir, request_params, response_params, blacklisted_schemas, args.regex)
+    generate_json_files(args.discovery_doc, args.output_dir, request_params, response_params, blacklisted_schemas, args.regex)
