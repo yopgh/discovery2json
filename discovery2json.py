@@ -6,7 +6,7 @@ import time
 import argparse
 import re
 
-def resolve_schema(schema_name, schemas, seen_schemas=None, max_depth=10, max_branches=10, start_depth=1, blacklisted_schemas=None):
+def resolve_schema(schema_name, schemas, seen_schemas=None, max_depth=10, max_branches=10, start_depth=1, blacklisted_schemas=None, include_docs=False):
     if seen_schemas is None:
         seen_schemas = []
 
@@ -35,23 +35,37 @@ def resolve_schema(schema_name, schemas, seen_schemas=None, max_depth=10, max_br
     resolved_properties = {}
     schema = schemas.get(schema_name, {})
     properties = schema.get("properties", {})
+    description = schema.get("description", "").strip()
+
+    if include_docs and description:
+        resolved_properties["__DOCS"] = description
 
     for key, value in properties.items():
         if "$ref" in value:
             resolved_properties[key] = resolve_schema(
-                value["$ref"], schemas, seen_schemas, max_depth, max_branches, start_depth, blacklisted_schemas
+                value["$ref"], schemas, seen_schemas, max_depth, max_branches, start_depth, blacklisted_schemas, include_docs
             )
         elif value.get("type") == "array":
             item_type = value.get("items", {}).get("type", "unknown")
-            if "$ref" in value.get("items", {}):
-                item_schema = resolve_schema(
-                    value["items"]["$ref"], schemas, seen_schemas, max_depth, max_branches, start_depth, blacklisted_schemas
-                )
-                resolved_properties[key] = [item_schema]
+            item_schema = resolve_schema(
+                value.get("items", {}).get("$ref", None), schemas, seen_schemas, max_depth, max_branches, start_depth, blacklisted_schemas, include_docs
+            ) if "$ref" in value.get("items", {}) else f"<{item_type}>"
+            if include_docs and value.get("description", "").strip():
+                resolved_properties[key] = [f"(DOCS: {value['description']})", item_schema]
             else:
-                resolved_properties[key] = [f"<{item_type}>"]
+                resolved_properties[key] = [item_schema]
+        elif value.get("type") == "object":
+            child_schema = resolve_schema(
+                value.get("$ref", None), schemas, seen_schemas, max_depth, max_branches, start_depth, blacklisted_schemas, include_docs
+            ) if "$ref" in value else {}
+            resolved_properties[key] = child_schema
+            if include_docs and value.get("description", "").strip():
+                resolved_properties[key]["__DOCS"] = value["description"]
         else:
-            resolved_properties[key] = f"<{value.get('type', 'unknown')}>"
+            type_str = f"<{value.get('type', 'unknown')}>"
+            if include_docs and value.get("description", "").strip():
+                type_str = f"<{value.get('type', 'unknown')}: {value['description']}>"
+            resolved_properties[key] = type_str
 
     seen_schemas.pop()
     return resolved_properties
@@ -84,7 +98,7 @@ def analyze_discovery_doc(discovery_doc, output_dir, regex):
 
     return directories_to_create
 
-def generate_json_files(discovery_doc_path, output_dir, request_params, response_params, blacklisted_schemas, regex):
+def generate_json_files(discovery_doc_path, output_dir, request_params, response_params, blacklisted_schemas, regex, include_docs):
     with open(discovery_doc_path, 'r') as f:
         discovery_doc = json.load(f)
 
@@ -104,7 +118,8 @@ def generate_json_files(discovery_doc_path, output_dir, request_params, response
                 method_data["request"].get("$ref", ""),
                 schemas,
                 **request_params,
-                blacklisted_schemas=blacklisted_schemas
+                blacklisted_schemas=blacklisted_schemas,
+                include_docs=include_docs
             ) if "request" in method_data else {}
         )
 
@@ -116,7 +131,8 @@ def generate_json_files(discovery_doc_path, output_dir, request_params, response
                 method_data["response"].get("$ref", ""),
                 schemas,
                 **response_params,
-                blacklisted_schemas=blacklisted_schemas
+                blacklisted_schemas=blacklisted_schemas,
+                include_docs=include_docs
             ) if "response" in method_data else {}
         )
 
@@ -134,6 +150,7 @@ if __name__ == "__main__":
     parser.add_argument("--response-max-branches", type=int, default=10, help="Maximum branches to resolve for responses.")
     parser.add_argument("--regex", type=str, default="^.*$", help="Regex pattern to match any part of method directories for processing.")
     parser.add_argument("--blacklisted-schemas", type=str, default="YoutubeApiInnertubeInnerTubeContext,YoutubeApiInnertubeResponseContext", help="Comma-separated list of blacklisted schemas.")
+    parser.add_argument("--docs", action="store_true", help="Include documentation strings in the output JSON files.")
 
     args = parser.parse_args()
 
@@ -151,4 +168,4 @@ if __name__ == "__main__":
 
     blacklisted_schemas = args.blacklisted_schemas.split(",")
 
-    generate_json_files(args.discovery_doc, args.output_dir, request_params, response_params, blacklisted_schemas, args.regex)
+    generate_json_files(args.discovery_doc, args.output_dir, request_params, response_params, blacklisted_schemas, args.regex, args.docs)
