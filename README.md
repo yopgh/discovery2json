@@ -12,13 +12,13 @@ python3 discovery2json.py people-pa.json people-pa
 
 ## Directory structure
 
-Discovery2json creates the root directory for all the JSON files as specified in the command-line arguments. It then creates `request.json` and `response.json` files for each method in nested subdirectories matching the endpoint paths. For example, for the `v2/people/updatePhotos` path in people-pa, it creates `{root-path}/v2/people/updatePhotos/request.json` and `{root-path}/v2/people/updatePhotos/response.json`.
+Discovery2json creates the root directory for all the JSON files as specified in the command-line arguments. It then creates `request.json` and `response.json` files for each method in nested subdirectories matching the endpoint paths. For example, for the `v2/people/updatePhotos` path in `people-pa`, it creates `{root-path}/v2/people/updatePhotos/request.json` and `{root-path}/v2/people/updatePhotos/response.json`.
 
 ## JSON format
 
 The output JSONs aren't immediately valid request or response bodies, but should be rather used as alternative documentation to the discovery document. They use strings to document data types and various limitations.
 
-For each method, the script recursively resolves schema references in order to build up the final request and response JSONs. For basic types such as strings and booleans, it uses strings to document the data type. For example, given a property `property` of type `integer`, the corresponding output JSON will output `"property": "(integer)"`. Arrays of a particular data type are expressed as arrays of a single string documenting the data type: `["(integer)"]`.
+For each method, the script recursively resolves schema references in order to build up the final request and response JSONs. For basic types such as strings and booleans, it uses strings to document the data type. For example, given a property `property` of type `integer`, the corresponding output JSON will be `"property": "(integer)"`. Arrays of a particular data type are expressed as arrays of a single string documenting the data type: `["(integer)"]`.
 
 Many schemas will have several properties, some of which won't be expected or useful for a particular request or won't ever exist in the response. Because we can't know which properties are actually relevant for a given endpoint, all of these may appear in the output JSONs, so it's still your job to figure out what is relevant and what isn't.
 
@@ -48,7 +48,7 @@ By default, discovery2json generates JSONs for all methods in the discovery docu
 
 For example, the following will regenerate the updatePhotos JSONs with different arguments from the ones provided earlier:
 ```
-python3 people-pa.json people-pa --regex updatePhotos --response-max-branches 100
+python3 discovery2json.py people-pa.json people-pa --regex updatePhotos --response-max-branches 100
 ```
 
 `people-pa/people/updatePhotos/response.json` before:
