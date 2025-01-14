@@ -100,7 +100,7 @@ def extract_methods_and_paths(resource, output_dir):
     if "methods" in resource:
         for method_name, method_data in resource["methods"].items():
             if "path" in method_data:
-                method_dir = os.path.join(output_dir, method_data["path"].lstrip("/").replace("/", os.sep))
+                method_dir = os.path.join(output_dir, method_data["path"].lstrip("/").replace("/", os.sep), method_data.get("httpMethod", "UNKNOWN").upper())
                 directories_to_create.append((method_dir, method_data))
 
     if "resources" in resource:
@@ -125,37 +125,24 @@ def generate_json_files(discovery_doc_path, output_dir, request_params, response
 
     directories_to_create = analyze_discovery_doc(discovery_doc, output_dir, regex)
 
-    for method_dir, _ in directories_to_create:
+    for method_dir, method_data in directories_to_create:
         os.makedirs(method_dir, exist_ok=True)
 
-    schemas = discovery_doc.get("schemas", {})
+        schemas = discovery_doc.get("schemas", {})
 
-    for method_dir, method_data in directories_to_create:
-        request_file_path = os.path.join(method_dir, "request.json")
-        write_file_with_stats(
-            output_dir,
-            request_file_path,
-            lambda: resolve_schema(
-                method_data["request"].get("$ref", ""),
-                schemas,
-                **request_params,
-                blacklisted_schemas=blacklisted_schemas,
-                include_docs=include_docs
-            ) if "request" in method_data else {}
-        )
-
-        response_file_path = os.path.join(method_dir, "response.json")
-        write_file_with_stats(
-            output_dir,
-            response_file_path,
-            lambda: resolve_schema(
-                method_data["response"].get("$ref", ""),
-                schemas,
-                **response_params,
-                blacklisted_schemas=blacklisted_schemas,
-                include_docs=include_docs
-            ) if "response" in method_data else {}
-        )
+        for io_type in ["request", "response"]:
+            file_path = os.path.join(method_dir, f"{io_type}.json")
+            write_file_with_stats(
+                output_dir,
+                file_path,
+                lambda: resolve_schema(
+                    method_data.get(io_type, {}).get("$ref", ""),
+                    schemas,
+                    **(request_params if io_type == "request" else response_params),
+                    blacklisted_schemas=blacklisted_schemas,
+                    include_docs=include_docs
+                ) if io_type in method_data else {}
+            )
 
     print(f"Files generated in directory: {output_dir}")
 

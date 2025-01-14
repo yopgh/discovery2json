@@ -2,6 +2,8 @@
 
 A tool to convert the methods and schemas in a Google discovery document to request and response JSON files, helping with writing request bodies for Google API endpoints with nested schema references more easily.
 
+Note: this is still experimental and it's still missing some important features for working with some discovery documents, such as GET parameter support (important for APIs like `people-pa`).
+
 ## Basic usage
 
 Creating request and response JSONs for all endpoints in `people-pa.googleapis.com` in a new directory called `people-pa`:
@@ -12,7 +14,11 @@ python3 discovery2json.py people-pa.json people-pa
 
 ## Directory structure
 
-Discovery2json creates the root directory for all the JSON files as specified in the command-line arguments. It then creates `request.json` and `response.json` files for each method in nested subdirectories matching the endpoint paths. For example, for the `v2/people/updatePhotos` path in `people-pa`, it creates `{root-path}/v2/people/updatePhotos/request.json` and `{root-path}/v2/people/updatePhotos/response.json`.
+Discovery2json creates the root directory for all the JSON files as specified in the command-line arguments. It then creates subdirectories expressing the endpoints found in the document as well as the HTTP methods they support, and `request.json` and `response.json` files within these documenting the request and response bodies for them.
+
+For example, `people-pa` features the `GET`, `POST` and `DELETE` methods for `/v2/people`. Hence, discovery2json generates `{root-path}/v2/people/POST/request.json`, `{root-path}/v2/people/POST/response.json`, etc.
+
+Note that currently URL parameters aren't supported, so `{root-path}/v2/people/GET/request.json` won't contain any information about the GET parameters that this endpoint expects. `request.json` only contains request body data.
 
 ## JSON format
 
@@ -44,14 +50,9 @@ If you want to completely ignore certain schemas, use `--blacklisted-schemas`, p
 
 ## Getting info for a particular endpoint or group of endpoints
 
-By default, discovery2json generates JSONs for all methods in the discovery document. Sometimes you might want to initially generate all JSONs, only to find a specific, interesting one where the limits from the previous section weren't ideal. In these cases you can generate new JSONs with new arguments just for these endpoints. Sometimes you may want to increase the limits without other endpoints that you don't care about making the script stuck on extremely big schemas. Use the `--regex` argument to ignore endpoints whose paths don't match the regex.
+By default, discovery2json generates JSONs for all methods in the discovery document. Sometimes you might want to initially generate all JSONs, only to find a specific, interesting one where the limits from the previous section weren't ideal. In these cases you can generate new JSONs with new arguments just for these endpoints. Sometimes you may want to increase the limits without other endpoints that you don't care about making the script stuck on extremely big schemas. Use the `--regex` argument to ignore endpoints whose directory paths don't match the regex.
 
-For example, the following will regenerate the updatePhotos JSONs with different arguments from the ones provided earlier:
-```
-python3 discovery2json.py people-pa.json people-pa --regex updatePhotos --response-max-branches 100
-```
-
-`people-pa/people/updatePhotos/response.json` before:
+For example, given the default arguments, this is the JSON generated for the response for `PUT` for `/v2/people/photos`, at `{root-dir}/v2/people/photos/PUT/response.json`:
 ```
 {
     "photoToken": "<string>",
@@ -67,12 +68,17 @@ python3 discovery2json.py people-pa.json people-pa --regex updatePhotos --respon
         "personId": "<string>",
         "person": "(79 properties hidden: max branches exceeded)",
         "debugInfo": "<string>",
-        "status": "<string>"
+        "status": "<RESULT_UNKNOWN|SUCCESS|INVALID_REQUEST|NOT_FOUND|ERROR|UNAUTHENTICATED>"
     }
 }
 ```
 
-`people-pa/people/updatePhotos/response.json` after:
+By running:
+```
+python3 discovery2json.py people-pa.json people-pa --regex "v2/people/photos/PUT$" --response-max-branches 100
+```
+
+we now get:
 ```
 {
     "photoToken": "<string>",
@@ -89,14 +95,13 @@ python3 discovery2json.py people-pa.json people-pa --regex updatePhotos --respon
         "person": {
             "personId": "<string>",
             "metadata": {
-                "model": "<string>",
+                "model": "<PERSON_MODEL_UNKNOWN|PROFILE_CENTRIC|CONTACT_CENTRIC>",
                 "deleted": "<boolean>",
                 "contactId": [
                     "<string>"
                 ],
                 "affinity": [
                     {
-                        "affinityType": "<string>",
 ...
 ```
 
@@ -104,28 +109,26 @@ python3 discovery2json.py people-pa.json people-pa --regex updatePhotos --respon
 
 If your discovery document includes non-empty `description` fields with documentation, you can pass `--docs` to include this documentation in the output JSONs. Where possible, this documents objects, arrays, enums, and other basic data types.
 
-Compare the previous `response.json` for `updatePhotos` with the following one, generated with `--docs` using the `staging-people-pa` discovery document (which comes with informative description fields):
+Compare the `response.json` from the previous section with the following one, generated with `--docs` using the `staging-people-pa` discovery document (which comes with informative description fields):
 ```
 {
-    "__DOCS": "Response from a people get request.",
-    "personResponse": [
-        "(DOCS: A multimap of results. For successful read of a given `person_id`, there will be one or more entries in this `person_response` list where the `PersonResponse.person_id` matches that of the requested `person_id` and the `PersonResponse.response_status.code` is `0` (which is the value of `util.error.Code.OK`). NOTE: * `PersonResponse.person_id` may not be the same value as the `PersonResponse.person.person_id` (go/people-api-concepts#person-id). * The ordering of entries with the same `PersonResponse.person_id` is not guaranteed and does not indicate a result \"priority\". For unsuccessful reads of a given `person_id`, there will be at least one entry in this `person_response` list where the `PersonResponse.person_id` matches that of the requested `person_id` and the `PersonResponse.response_status.code` is not `0`. *Special Case* Because the InternalPeopleService does not have a dedicated method for reading profile-centric people by Gaia ID, the advised technique is to use GetPeople with a list of Focus-obfuscated Gaia IDs and PROFILE_CENTRIC person model (which is the default if the GetPeopleRequest's merged_person_source_options.person_model_params.person_model is unset). For request meeting that criteria, there will be exactly one entry in the `person_response` list for each requested `person_id`.)",
-        {
-            "__DOCS": "A single person response entry.",
-            "responseStatus": {
-                "__DOCS": "The `Status` type defines a logical error model that is suitable for different programming environments, including REST APIs and RPC APIs. It is used by [gRPC](https://github.com/grpc). Each `Status` message contains three pieces of data: error code, error message, and error details. You can find out more about this error model and how to work with it in the [API Design Guide](https://cloud.google.com/apis/design/errors).",
-                "code": "<integer: The status code, which should be an enum value of google.rpc.Code.>",
-                "message": "<string: A developer-facing error message, which should be in English. Any user-facing error message should be localized and sent in the google.rpc.Status.details field, or localized by the client.>",
-                "details": [
-                    "(DOCS: A list of messages that carry the error details. There is a common set of message types for APIs to use.)",
-                    "<object>"
-                ]
-            },
-            "personId": "<string: The original lookup person ID. This enables the caller to correlate to the original request.>",
-            "person": "(79 properties hidden: max branches exceeded)",
-            "debugInfo": "<string: Additional useful information for debugging when Status isn't a SUCCESS.>",
-            "status": "<string: Deprecated. See the google.rpc.Code 'response_status' field above.>"
-        }
-    ]
+    "photoToken": "<string: For contact photo updates, this field will be populated with a fingerprint of the photo, which is computed to match the merged_person proto's Photo.photo_token parameter.>",
+    "photoUrl": "<string: If the request did not specify a full post-mutate GetPeopleRequest, and the request did not specify the optimization param `omit_photo_url_from_response`, this field will be populated with the URL that can be used to fetch the actual photo bytes.>",
+    "personResponse": {
+        "__DOCS": "A single person response entry.",
+        "responseStatus": {
+            "__DOCS": "The `Status` type defines a logical error model that is suitable for different programming environments, including REST APIs and RPC APIs. It is used by [gRPC](https://github.com/grpc). Each `Status` message contains three pieces of data: error code, error message, and error details. You can find out more about this error model and how to work with it in the [API Design Guide](https://cloud.google.com/apis/design/errors).",
+            "code": "<integer: The status code, which should be an enum value of google.rpc.Code.>",
+            "message": "<string: A developer-facing error message, which should be in English. Any user-facing error message should be localized and sent in the google.rpc.Status.details field, or localized by the client.>",
+            "details": [
+                "(DOCS: A list of messages that carry the error details. There is a common set of message types for APIs to use.)",
+                "<object>"
+            ]
+        },
+        "personId": "<string: The original lookup person ID. This enables the caller to correlate to the original request.>",
+        "person": "(79 properties hidden: max branches exceeded)",
+        "debugInfo": "<string: Additional useful information for debugging when Status isn't a SUCCESS.>",
+        "status": "<RESULT_UNKNOWN: Unknown status.|SUCCESS: The request is successful. The person field should contain the requested resource.|INVALID_REQUEST: Bad request|NOT_FOUND: Person not found.|ERROR: Server error getting the person by id.|UNAUTHENTICATED: The request was not properly authenticated.>"
+    }
 }
 ```
