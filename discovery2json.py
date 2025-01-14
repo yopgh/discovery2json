@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import os
 import json
-import urllib.parse
 import time
 import argparse
 import re
@@ -95,19 +94,30 @@ def write_file_with_stats(output_dir, file_path, resolve_function):
     file_size = len(json.dumps(content, indent=4))
     print(f"\r[*] {elapsed_time:.2f}s {file_size}B {rel_path}")
 
+def extract_methods_and_paths(resource, output_dir):
+    directories_to_create = []
+
+    if "methods" in resource:
+        for method_name, method_data in resource["methods"].items():
+            if "path" in method_data:
+                method_dir = os.path.join(output_dir, method_data["path"].lstrip("/").replace("/", os.sep))
+                directories_to_create.append((method_dir, method_data))
+
+    if "resources" in resource:
+        for subresource in resource["resources"].values():
+            directories_to_create.extend(extract_methods_and_paths(subresource, output_dir))
+
+    return directories_to_create
+
 def analyze_discovery_doc(discovery_doc, output_dir, regex):
     directories_to_create = []
 
-    for endpoint, methods in discovery_doc.get("resources", {}).items():
-        endpoint_dir = os.path.join(output_dir, endpoint)
+    for resource in discovery_doc.get("resources", {}).values():
+        directories_to_create.extend(extract_methods_and_paths(resource, output_dir))
 
-        for method_name, method_data in methods.get("methods", {}).items():
-            method_dir = os.path.join(endpoint_dir, method_name)
+    filtered_directories = [entry for entry in directories_to_create if re.search(regex, entry[0])]
 
-            if re.search(regex, method_dir):
-                directories_to_create.append((method_dir, method_data))
-
-    return directories_to_create
+    return filtered_directories
 
 def generate_json_files(discovery_doc_path, output_dir, request_params, response_params, blacklisted_schemas, regex, include_docs):
     with open(discovery_doc_path, 'r') as f:
