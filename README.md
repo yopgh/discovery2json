@@ -14,7 +14,7 @@ python3 discovery2json.py people-pa.json people-pa
 
 ## Directory structure
 
-Discovery2json creates the root directory for all the JSON files as specified in the command-line arguments. It then creates subdirectories expressing the endpoints found in the document as well as the HTTP methods they support, and `request.json` and `response.json` files within these documenting the request and response bodies for them.
+Discovery2json creates the root directory for all the JSON files as specified in the command-line arguments. It then creates subdirectories expressing the endpoints found in the document as well as the HTTP methods they support, and JSON files within these documenting the request (`request.json`) and response (`response.json`) bodies for them, as well as a `method.json` file with the original method JSON entry, which can be useful to find GET parameters, scopes, etc.
 
 For example, `people-pa` features the `GET`, `POST` and `DELETE` methods for `/v2/people`. Hence, discovery2json generates `{root-path}/v2/people/POST/request.json`, `{root-path}/v2/people/POST/response.json`, etc.
 

@@ -144,6 +144,13 @@ def generate_json_files(discovery_doc_path, output_dir, request_params, response
                 ) if io_type in method_data else {}
             )
 
+        method_file_path = os.path.join(method_dir, "method.json")
+        write_file_with_stats(
+            output_dir,
+            method_file_path,
+            lambda: method_data
+        )
+
     print(f"Files generated in directory: {output_dir}")
 
 if __name__ == "__main__":
