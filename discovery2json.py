@@ -70,7 +70,7 @@ def resolve_schema(schema_name, schemas, seen_schemas=None, max_depth=10, max_br
                 )
                 resolved_properties[key] = f"<{resolved_properties[key]}>"
             else:
-                resolved_properties[key] = f"<{"|".join(enum_values)}>"
+                resolved_properties[key] = f"<{'|'.join(enum_values)}>"
         else:
             type_str = f"<{value.get('type', 'unknown')}>"
             if include_docs and value.get("description", "").strip():
